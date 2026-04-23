@@ -2,13 +2,13 @@ import { cmd } from "./cmd"
 import { bootstrap } from "../bootstrap"
 import { UI } from "../ui"
 import { Server } from "../../server/server"
-import { createOpencodeClient } from "@opencode-ai/sdk/v2"
-import { Flag } from "../../flag/flag"
-import { EOL } from "os"
+import open from "open"
+import { spawn } from "child_process"
+import path from "path"
 
 export const StockTerminalCommand = cmd({
   command: "stock-terminal [ticker]",
-  describe: "launch Bloomberg-style financial terminal with AI analyst",
+  describe: "launch Bloomberg-style financial terminal web app with AI analyst",
   builder: (yargs) =>
     yargs
       .positional("ticker", {
@@ -19,10 +19,10 @@ export const StockTerminalCommand = cmd({
         type: "string",
         description: "directory to run in",
       })
-      .option("theme", {
-        type: "string",
-        description: "terminal theme (default: bloomberg)",
-        default: "bloomberg",
+      .option("port", {
+        type: "number",
+        description: "port for the stock app dev server",
+        default: 4097,
       }),
   handler: async (args) => {
     const directory = args.dir ?? process.cwd()
@@ -39,7 +39,7 @@ export const StockTerminalCommand = cmd({
       )
       UI.println(
         UI.Style.TEXT_WARNING_BOLD +
-          "  ║        Bloomberg-Style AI Analyst                 ║",
+          "  ║        Bloomberg-Style Web App                    ║",
       )
       UI.println(
         UI.Style.TEXT_WARNING_BOLD +
@@ -67,125 +67,80 @@ export const StockTerminalCommand = cmd({
         UI.empty()
         UI.println(
           UI.Style.TEXT_DIM +
-            "  Set these environment variables to enable full functionality.",
+            "  Set these environment variables for full functionality.",
         )
         UI.println(
           UI.Style.TEXT_DIM +
-            "  The analyst agent will still work but financial tools will return errors.",
+            "  The web app will show a setup screen for missing keys.",
         )
         UI.empty()
       }
 
-      // Start the server
+      // Start the OpenCode backend server
       const server = await Server.listen({})
-      const sdk = createOpencodeClient({ baseUrl: server.url.toString() })
+      const serverUrl = server.url.toString()
 
-      // Create a session
-      const session = await sdk.session.create({})
+      UI.println(UI.Style.TEXT_INFO_BOLD + `  OpenCode server: ${serverUrl}`)
 
-      UI.println(
-        UI.Style.TEXT_INFO_BOLD +
-          `  Session: ${session.id}`,
-      )
-      UI.println(
-        UI.Style.TEXT_DIM +
-          `  Agent: analyst  |  Theme: ${args.theme}`,
-      )
-      UI.empty()
+      // Start the Vite dev server for the stock-app
+      const stockAppDir = path.resolve(import.meta.dirname, "../../../../stock-app")
+      const appPort = args.port
 
-      // If a ticker was provided, send the initial query
-      if (args.ticker) {
-        const ticker = args.ticker.toUpperCase()
-        UI.println(
-          UI.Style.TEXT_WARNING_BOLD +
-            `  Analyzing ${ticker}...`,
-        )
-        UI.empty()
-
-        const prompt = `Analyze the stock ${ticker}. Provide a full quote, macro context, and sentiment analysis.`
-        await sdk.session.chat({
-          sessionID: session.id,
-          parts: [{ type: "text", text: prompt }],
-          agent: "analyst",
-        })
-
-        // Stream the response
-        const sub = sdk.session.subscribe(session.id)
-        for await (const event of sub) {
-          if (event.type === "event") {
-            const data = event.data
-            if ("part" in data && data.part && "text" in data.part) {
-              process.stdout.write(data.part.text)
-            }
-          }
-        }
-        UI.empty()
+      const env: Record<string, string> = {
+        ...process.env as Record<string, string>,
+        VITE_OPENCODE_SERVER_URL: serverUrl,
+        VITE_ALPACA_API_KEY: process.env.ALPACA_API_KEY ?? "",
+        VITE_ALPACA_API_SECRET: process.env.ALPACA_API_SECRET ?? "",
+        VITE_FRED_API_KEY: process.env.FRED_API_KEY ?? "",
+        VITE_NEWS_API_KEY: process.env.NEWS_API_KEY ?? "",
+        VITE_INITIAL_TICKER: args.ticker?.toUpperCase() ?? "",
       }
 
-      UI.println(
-        UI.Style.TEXT_DIM +
-          "  Type a ticker or financial query. Use Ctrl+C to exit.",
-      )
-      UI.empty()
-
-      // Interactive REPL loop
-      const readline = await import("readline")
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-        prompt: UI.Style.TEXT_WARNING_BOLD + "  ❯ " + UI.Style.TEXT_NORMAL,
+      const viteProcess = spawn("bun", ["run", "vite", "--port", String(appPort), "--host", "0.0.0.0"], {
+        cwd: stockAppDir,
+        env,
+        stdio: "pipe",
       })
 
-      rl.prompt()
-      rl.on("line", async (line: string) => {
-        const input = line.trim()
-        if (!input) {
-          rl.prompt()
-          return
+      let viteReady = false
+      viteProcess.stdout?.on("data", (data: Buffer) => {
+        const output = data.toString()
+        if (!viteReady && output.includes("Local:")) {
+          viteReady = true
+          const ticker = args.ticker?.toUpperCase() ?? ""
+          const appUrl = `http://localhost:${appPort}${ticker ? `?ticker=${ticker}` : ""}`
+
+          UI.println(UI.Style.TEXT_INFO_BOLD + `  Stock terminal:  ${appUrl}`)
+          UI.empty()
+          UI.println(UI.Style.TEXT_DIM + "  Opening browser...")
+          UI.empty()
+
+          open(appUrl).catch(() => {})
         }
-
-        // Check for special commands
-        if (input.toLowerCase() === "exit" || input.toLowerCase() === "quit") {
-          rl.close()
-          return
-        }
-
-        // Determine if this is a ticker or a full query
-        const isTicker = /^[A-Z]{1,5}$/i.test(input)
-        const prompt = isTicker
-          ? `Analyze the stock ${input.toUpperCase()}. Provide a full quote, macro context, and sentiment analysis.`
-          : input
-
-        UI.empty()
-        try {
-          await sdk.session.chat({
-            sessionID: session.id,
-            parts: [{ type: "text", text: prompt }],
-            agent: "analyst",
-          })
-
-          const sub = sdk.session.subscribe(session.id)
-          for await (const event of sub) {
-            if (event.type === "event") {
-              const data = event.data
-              if ("part" in data && data.part && "text" in data.part) {
-                process.stdout.write(data.part.text)
-              }
-            }
-          }
-        } catch (error) {
-          UI.println(UI.Style.TEXT_WARNING_BOLD + `  Error: ${error}`)
-        }
-        UI.empty()
-        rl.prompt()
       })
 
-      rl.on("close", async () => {
-        UI.empty()
-        UI.println(UI.Style.TEXT_DIM + "  Terminal session closed.")
+      viteProcess.stderr?.on("data", (data: Buffer) => {
+        const output = data.toString()
+        if (output.includes("error") || output.includes("Error")) {
+          UI.println(UI.Style.TEXT_WARNING_BOLD + `  Vite: ${output.trim()}`)
+        }
+      })
+
+      // Handle cleanup
+      const cleanup = async () => {
+        viteProcess.kill()
         await server.stop()
         process.exit(0)
-      })
+      }
+
+      process.on("SIGINT", cleanup)
+      process.on("SIGTERM", cleanup)
+
+      UI.println(UI.Style.TEXT_DIM + "  Press Ctrl+C to exit.")
+      UI.empty()
+
+      // Keep the process running
+      await new Promise(() => {})
     })
   },
 })
