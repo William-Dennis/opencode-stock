@@ -124,6 +124,8 @@ Requires NEWS_API_KEY environment variable. Get a free key at https://newsapi.or
     const scored = data.articles.map((article) => {
       const text = `${article.title} ${article.description ?? ""}`
       const rawScore = scoreSentimentKeywords(text)
+      // Normalize raw keyword count to [-1, 1] range. Dividing by 5 assumes a typical
+      // article triggers at most ~5 keyword matches, so the score saturates at ±1.0.
       const normalizedScore = Math.max(-1, Math.min(1, rawScore / 5))
       return {
         title: article.title,

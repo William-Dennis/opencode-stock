@@ -186,9 +186,6 @@ export const StockTerminalCommand = cmd({
         await server.stop()
         process.exit(0)
       })
-
-      // Keep the process alive
-      await new Promise(() => {})
     })
   },
 })
