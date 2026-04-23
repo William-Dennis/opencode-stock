@@ -87,7 +87,9 @@ export const StockTerminalCommand = cmd({
       const appPort = args.port
 
       const env: Record<string, string> = {
-        ...process.env as Record<string, string>,
+        ...(Object.fromEntries(
+          Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+        )),
         VITE_OPENCODE_SERVER_URL: serverUrl,
         VITE_ALPACA_API_KEY: process.env.ALPACA_API_KEY ?? "",
         VITE_ALPACA_API_SECRET: process.env.ALPACA_API_SECRET ?? "",

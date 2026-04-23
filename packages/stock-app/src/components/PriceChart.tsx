@@ -4,9 +4,13 @@ import { fetchChartData, type Bar } from "@/api/alpaca"
 
 const PERIODS = ["1D", "5D", "1M", "3M", "1Y"] as const
 
+function barTime(bar: Bar): Time {
+  return (bar.t.split("T")[0] || bar.t.slice(0, 10)) as unknown as Time
+}
+
 function barToCandle(bar: Bar): CandlestickData<Time> {
   return {
-    time: (bar.t.split("T")[0] || bar.t.slice(0, 10)) as unknown as Time,
+    time: barTime(bar),
     open: bar.o,
     high: bar.h,
     low: bar.l,
@@ -16,7 +20,7 @@ function barToCandle(bar: Bar): CandlestickData<Time> {
 
 function barToVolume(bar: Bar, prev?: Bar): HistogramData<Time> {
   return {
-    time: (bar.t.split("T")[0] || bar.t.slice(0, 10)) as unknown as Time,
+    time: barTime(bar),
     value: bar.v,
     color: bar.c >= (prev?.c ?? bar.o) ? "rgba(51, 204, 51, 0.4)" : "rgba(255, 68, 68, 0.4)",
   }

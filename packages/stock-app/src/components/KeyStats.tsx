@@ -10,6 +10,12 @@ function StatCard(props: { label: string; value: string; color?: string }) {
   )
 }
 
+const fmt = (n: number | undefined, decimals = 2) =>
+  n !== undefined ? n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : "—"
+
+const fmtVol = (n: number | undefined) =>
+  n !== undefined ? (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n.toLocaleString()) : "—"
+
 export function KeyStats(props: { ticker: string }) {
   const [quote, setQuote] = createSignal<Quote | null>(null)
   const [error, setError] = createSignal("")
@@ -24,12 +30,6 @@ export function KeyStats(props: { ticker: string }) {
       setError(e instanceof Error ? e.message : "Failed to load quote")
     }
   })
-
-  const fmt = (n: number | undefined, decimals = 2) =>
-    n !== undefined ? n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : "—"
-
-  const fmtVol = (n: number | undefined) =>
-    n !== undefined ? (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n.toLocaleString()) : "—"
 
   return (
     <div class="p-3">

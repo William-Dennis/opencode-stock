@@ -15,12 +15,8 @@ export function App() {
   const initialTicker = config.ticker || new URLSearchParams(location.search).get("ticker") || ""
   const [ticker, setTicker] = createSignal(initialTicker.toUpperCase())
   const [lastUpdated, setLastUpdated] = createSignal(new Date().toLocaleTimeString())
-  const [showSetup, setShowSetup] = createSignal(false)
-
   const missingKeys = getMissingKeys()
-  if (missingKeys.length > 0) {
-    setShowSetup(true)
-  }
+  const [showSetup, setShowSetup] = createSignal(missingKeys.length > 0)
 
   const handleTickerSubmit = (newTicker: string) => {
     setTicker(newTicker)
