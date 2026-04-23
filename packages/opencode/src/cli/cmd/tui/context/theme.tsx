@@ -35,6 +35,7 @@ import tokyonight from "./theme/tokyonight.json" with { type: "json" }
 import vercel from "./theme/vercel.json" with { type: "json" }
 import vesper from "./theme/vesper.json" with { type: "json" }
 import zenburn from "./theme/zenburn.json" with { type: "json" }
+import bloomberg from "./theme/bloomberg.json" with { type: "json" }
 import carbonfox from "./theme/carbonfox.json" with { type: "json" }
 import { useKV } from "./kv"
 import { useRenderer } from "@opentui/solid"
@@ -88,6 +89,7 @@ export type ThemeJson = {
 export const DEFAULT_THEMES: Record<string, ThemeJson> = {
   aura,
   ayu,
+  bloomberg,
   catppuccin,
   ["catppuccin-frappe"]: catppuccinFrappe,
   ["catppuccin-macchiato"]: catppuccinMacchiato,
