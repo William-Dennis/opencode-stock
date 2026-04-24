@@ -1,0 +1,27 @@
+{
+  "name": "@opencode-ai/stock-app",
+  "version": "1.14.22",
+  "description": "Bloomberg-style financial terminal web app",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsgo -b"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
+    "@typescript/native-preview": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "workspace:*",
+    "lightweight-charts": "5.1.0",
+    "solid-js": "catalog:",
+    "tailwindcss": "catalog:"
+  }
+}
